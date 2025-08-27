@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Bank - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="nav">
+                <div>
+                    <h1>🔐 Quantum Bank Dashboard</h1>
+                    <p class="subtitle">Welcome back, {{ user.username }}!</p>
+                </div>
+                <div class="nav-links">
+                    <a href="#" id="refreshData">🔄 Refresh</a>
+                    <a href="/logout">🚪 Logout</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quantum Channel Status -->
+        <div class="card">
+            <div class="quantum-status">
+                <div id="quantumIndicator" class="quantum-indicator quantum-inactive"></div>
+                <span id="quantumStatusText">Quantum Channel Inactive</span>
+            </div>
+            
+            <!-- Quantum Security Metrics -->
+            <div id="quantumMetrics" class="quantum-metrics" style="display: none;">
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value" id="qbrValue">0.00%</div>
+                        <div class="metric-label">QBR (Quantum Bit Error Rate)</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="keyLength">256</div>
+                        <div class="metric-label">Key Length (bits)</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="channelStrength">Strong</div>
+                        <div class="metric-label">Channel Security</div>
+                    </div>
+                </div>
+                
+                <!-- Eavesdropper Detection -->
+                <div class="eavesdropper-section">
+                    <div class="eavesdropper-header">
+                        <span>🕵️ Eavesdropper Detection</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="eavesdropperToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div id="eavesdropperAnimation" class="eavesdropper-animation" style="display: none;">
+                        <div class="quantum-particles">
+                            <div class="particle"></div>
+                            <div class="particle"></div>
+                            <div class="particle"></div>
+                            <div class="particle"></div>
+                            <div class="particle"></div>
+                        </div>
+                        <div class="detection-status">
+                            <span id="detectionStatus">🛡️ Channel Secure - No Eavesdropping Detected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="establishQuantumChannel" class="btn btn-quantum">🔗 Establish Quantum Channel</button>
+                <p style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+                    Required for secure transactions using BB84 quantum key distribution
+                </p>
+            </div>
+        </div>
+
+        <!-- Account Overview -->
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <h3 id="userBalance">${{ "%.2f"|format(user.balance) }}</h3>
+                <p>Account Balance</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="transactionCount">{{ transactions|length }}</h3>
+                <p>Total Transactions</p>
+            </div>
+            <div class="stat-card">
+                <h3>🔐</h3>
+                <p>Quantum Secured</p>
+            </div>
+        </div>
+
+        <!-- Transaction Form -->
+        <div class="card" id="transactionForm" style="display: none;">
+            <h3 style="color: #667eea; margin-bottom: 20px;">💸 Send Quantum-Secured Transaction</h3>
+            <form id="transactionForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label for="recipient">Recipient Username</label>
+                        <input type="text" id="recipient" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">Amount ($)</label>
+                        <input type="number" id="amount" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                </div>
+                <button type="submit" id="sendTransactionBtn" class="btn btn-secondary">🚀 Send Transaction</button>
+            </form>
+        </div>
+
+        <!-- Transaction Process Flow -->
+        <div class="card">
+            <h3 style="color: #667eea; margin-bottom: 20px;">🔄 Quantum Transaction Process</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🔗</div>
+                    <h4>1. Establish Channel</h4>
+                    <p>Create quantum-secured communication channel</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🔐</div>
+                    <h4>2. BB84 QKD</h4>
+                    <p>Generate quantum encryption keys</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
+                    <h4>3. Error Check</h4>
+                    <p>Verify quantum key integrity</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">💳</div>
+                    <h4>4. Send Transaction</h4>
+                    <p>Encrypt and transmit securely</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🏦</div>
+                    <h4>5. Bank Processing</h4>
+                    <p>Decrypt and verify transaction</p>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+                    <h4>6. Confirmation</h4>
+                    <p>Transaction success/failure</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="card">
+            <h3 style="color: #667eea; margin-bottom: 20px;">📊 Recent Transactions</h3>
+            <div id="recentTransactions">
+                {% if transactions %}
+                    {% for transaction in transactions %}
+                    <div class="transaction-item">
+                        <div class="transaction-header">
+                            <div>
+                                <strong>To: {{ transaction.recipient }}</strong>
+                                <div class="transaction-date">{{ transaction.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                            <div>
+                                <div class="transaction-amount">-${{ "%.2f"|format(transaction.amount) }}</div>
+                                <span class="transaction-status status-{{ transaction.status }}">{{ transaction.status }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+                        <h4>No transactions yet</h4>
+                        <p>Establish a quantum channel and send your first secure transaction!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Security Information -->
+        <div class="card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+            <h3 style="margin-bottom: 20px;">🛡️ Your Security Status</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <h4>🔐 Encryption Level</h4>
+                    <p>256-bit Quantum Key Distribution</p>
+                </div>
+                <div>
+                    <h4>⚡ Processing Speed</h4>
+                    <p>Real-time IBM Quantum Backend</p>
+                </div>
+                <div>
+                    <h4>🔒 Protocol</h4>
+                    <p>BB84 Quantum Key Distribution</p>
+                </div>
+                <div>
+                    <h4>🛡️ Security Rating</h4>
+                    <p>Military Grade Protection</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- QKD Key Demo Container -->
+        <div class="qkd-demo" style="display: none;" id="qkdDemo">
+            <div class="qkd-header">🔐 Quantum Key Distribution (QKD) Demo</div>
+            <div class="key-exchange">
+                <div class="user-node">
+                    <div>👤 You</div>
+                    <small>Sender</small>
+                </div>
+                <div class="quantum-channel">
+                    <div class="channel-line">
+                        <div class="quantum-pulse"></div>
+                    </div>
+                    <div style="text-align: center; margin-top: 10px; color: #4facfe; font-size: 0.9rem;">
+                        Quantum Channel
+                    </div>
+                </div>
+                <div class="recipient-node">
+                    <div>👥 Recipient</div>
+                    <small>Receiver</small>
+                </div>
+            </div>
+            <div class="encrypted-key" id="encryptedKeyDisplay" style="display: none;">
+                <div class="key-label">🔑 Encrypted Transaction Key:</div>
+                <div id="keyValue"></div>
+            </div>
+        </div>
+
+        <!-- Modal for Popups -->
+        <div id="transactionModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header" id="modalHeader"></div>
+                <div class="modal-body" id="modalBody"></div>
+                <button class="modal-close" onclick="app.closeModal()">Close</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        const app = new QuantumBankApp();
+    </script>
+</body>
+</html>

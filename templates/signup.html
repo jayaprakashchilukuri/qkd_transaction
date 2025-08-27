@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Bank - Sign Up</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Quantum Bank</h1>
+            <p class="subtitle">Join the Future of Secure Banking</p>
+        </div>
+
+        <div class="card auth-card">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #667eea;">Create Your Account</h2>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-control" required>
+                </div>
+                
+                <button type="submit" id="registerBtn" class="btn btn-primary">Create Account</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p>Already have an account? <a href="/login" style="color: #667eea; text-decoration: none;">Login here</a></p>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 600px; margin: 30px auto;">
+            <h3 style="color: #667eea; margin-bottom: 20px;">🔬 What Makes Us Different</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🔐</div>
+                    <h4 style="color: #667eea;">Quantum Security</h4>
+                    <p>Your account is protected by quantum encryption that's theoretically unbreakable.</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">⚡</div>
+                    <h4 style="color: #667eea;">Instant Transactions</h4>
+                    <p>Real-time processing powered by IBM's quantum computers.</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🛡️</div>
+                    <h4 style="color: #667eea;">Military Grade</h4>
+                    <p>BB84 quantum key distribution protocol ensures maximum security.</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🌐</div>
+                    <h4 style="color: #667eea;">Future Ready</h4>
+                    <p>Built for the quantum age with cutting-edge technology.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 500px; margin: 30px auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h3 style="text-align: center; margin-bottom: 20px;">🎁 Welcome Bonus</h3>
+            <p style="text-align: center; font-size: 1.1rem;">Get <strong>$1,000</strong> starting balance when you create your account!</p>
+            <p style="text-align: center; opacity: 0.9;">Perfect for testing our quantum-secured transactions.</p>
+        </div>
+    </div>
+
+    <!-- Modal for Popups -->
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader"></div>
+            <div class="modal-body" id="modalBody"></div>
+            <button class="modal-close" onclick="app.closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        const app = new QuantumBankingApp();
+    </script>
+</body>
+</html>

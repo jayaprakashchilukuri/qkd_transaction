@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Bank - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Quantum Bank</h1>
+            <p class="subtitle">Secure Banking with Quantum Encryption</p>
+        </div>
+
+        <div class="card auth-card">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #667eea;">Login to Your Account</h2>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                
+                <button type="submit" id="loginBtn" class="btn btn-primary">Login</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p>Don't have an account? <a href="/signup" style="color: #667eea; text-decoration: none;">Sign up here</a></p>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 600px; margin: 30px auto;">
+            <h3 style="color: #667eea; margin-bottom: 20px;">🚀 Quantum Banking Features</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin: 15px 0; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                    <strong>🔒 Quantum Encryption:</strong> Your transactions are secured with quantum key distribution
+                </li>
+                <li style="margin: 15px 0; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                    <strong>⚡ Real-time Processing:</strong> Instant transaction verification using IBM Quantum computers
+                </li>
+                <li style="margin: 15px 0; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                    <strong>🛡️ BB84 Protocol:</strong> Military-grade quantum key distribution for maximum security
+                </li>
+                <li style="margin: 15px 0; padding: 10px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                    <strong>📊 Advanced Dashboard:</strong> Monitor your quantum-secured transactions in real-time
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Modal for Popups -->
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader"></div>
+            <div class="modal-body" id="modalBody"></div>
+            <button class="modal-close" onclick="app.closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        const app = new QuantumBankingApp();
+    </script>
+</body>
+</html>

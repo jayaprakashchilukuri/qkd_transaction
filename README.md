@@ -201,3 +201,160 @@ For issues or questions about the quantum banking platform, please refer to the 
 ---
 
 **⚠️ Disclaimer**: This is a demonstration platform for educational purposes. Do not use with real financial data or in production environments without proper security audits.
+
+# Quantum Banking Application
+
+A secure banking application using quantum key distribution (BB84 protocol) with MongoDB backend.
+
+## Features
+
+- **Quantum Security**: BB84 quantum key distribution protocol
+- **MongoDB Integration**: All data stored in MongoDB Atlas
+- **User Authentication**: Secure signup/login system
+- **Quantum Transactions**: Encrypted transactions using quantum keys
+- **Real-time Dashboard**: Monitor account balance and transaction history
+- **Database Access**: Admin endpoint to view stored data
+
+## Setup Instructions
+
+### 1. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. MongoDB Configuration
+
+The application is configured to use MongoDB Atlas with the connection string:
+```
+mongodb+srv://jayaprakash:jayaprakash@bb84.gwvd6qy.mongodb.net/quantumbank?retryWrites=true&w=majority&appName=BB84
+```
+
+### 3. Run the Application
+
+```bash
+python app.py
+```
+
+The application will start on `http://localhost:5000`
+
+## Usage
+
+### 1. Create Account
+- Navigate to `/signup`
+- Enter username, email, and password
+- Account created with $1000 starting balance
+
+### 2. Login
+- Navigate to `/login` or `/`
+- Enter your credentials
+
+### 3. Dashboard Features
+- **Establish Quantum Channel**: Required before transactions
+- **Send Transactions**: Quantum-encrypted money transfers
+- **View Transaction History**: Recent transaction records
+- **Eavesdropper Detection**: Security monitoring
+
+### 4. Database Access
+- Navigate to `/database` to view stored data
+- API endpoint: `/api/admin/database_access`
+
+## API Endpoints
+
+- `POST /api/register` - User registration
+- `POST /api/login` - User authentication
+- `POST /api/establish_quantum_channel` - Create quantum channel
+- `POST /api/send_transaction` - Send encrypted transaction
+- `POST /api/process_transaction/<id>` - Process transaction
+- `GET /api/user_data` - Get user data and transactions
+- `GET /api/admin/database_access` - Access database collections
+
+## MongoDB Collections
+
+### Users Collection
+```json
+{
+  "_id": "ObjectId",
+  "username": "string",
+  "email": "string", 
+  "password_hash": "string",
+  "quantum_key": "string",
+  "balance": "number",
+  "created_at": "datetime"
+}
+```
+
+### Transactions Collection
+```json
+{
+  "_id": "ObjectId",
+  "user_id": "string",
+  "recipient": "string",
+  "amount": "number",
+  "encrypted_data": "string",
+  "quantum_key_id": "string",
+  "status": "string",
+  "timestamp": "datetime"
+}
+```
+
+### Quantum Channels Collection
+```json
+{
+  "_id": "ObjectId", 
+  "user_id": "string",
+  "quantum_key": "string",
+  "established_at": "datetime",
+  "status": "string"
+}
+```
+
+## Security Features
+
+- **Password Hashing**: Werkzeug secure password hashing
+- **Quantum Key Generation**: 256-bit quantum keys
+- **Data Encryption**: XOR encryption with quantum keys
+- **Session Management**: Flask session handling
+- **Eavesdropper Detection**: Quantum channel monitoring
+
+## Troubleshooting
+
+### MongoDB Connection Issues
+- Ensure internet connection for MongoDB Atlas
+- Check connection string credentials
+- Verify network allows MongoDB connections
+
+### Missing Dependencies
+```bash
+pip install --upgrade -r requirements.txt
+```
+
+### Port Already in Use
+Change port in `app.py`:
+```python
+app.run(debug=True, host='0.0.0.0', port=5001)
+```
+
+## Development
+
+The application uses:
+- **Flask**: Web framework
+- **PyMongo**: MongoDB driver
+- **Qiskit**: Quantum computing (optional)
+- **Werkzeug**: Security utilities
+
+## Testing
+
+1. Start the application
+2. Create a test account
+3. Login and establish quantum channel
+4. Send a test transaction
+5. Check `/database` to view stored data
+
+## Notes
+
+- Quantum features use simulation if Qiskit hardware unavailable
+- All sensitive data encrypted before storage
+- Database automatically creates collections on first use
+#   Q k d 2 _ t r a n s a c t i o n  
+ 

@@ -33,7 +33,7 @@ quantum_channels_db = {}
 USE_MONGODB = False
 mongo = None
 try:
-    app.config["MONGO_URI"] = "mongodb://localhost:27017/quantum_bank"
+    app.config["MONGO_URI"] = "mongodb+srv://jayaprakash:jayaprakash@bb84.gwvd6qy.mongodb.net/?retryWrites=true&w=majority&appName=BB84"
     mongo = PyMongo(app)
     # Test the connection with a timeout
     mongo.db.list_collection_names()

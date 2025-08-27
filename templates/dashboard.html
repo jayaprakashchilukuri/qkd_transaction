@@ -82,6 +82,7 @@
             <div class="stat-card">
                 <h3 id="userBalance">${{ "%.2f"|format(user.balance) }}</h3>
                 <p>Account Balance</p>
+                <button id="addMoney" class="btn btn-secondary" style="margin-top: 10px; padding: 8px 16px; font-size: 0.9rem;">💰 Add $500</button>
             </div>
             <div class="stat-card">
                 <h3 id="transactionCount">{{ transactions|length }}</h3>
@@ -235,6 +236,9 @@
                 <button class="modal-close" onclick="app.closeModal()">Close</button>
             </div>
         </div>
+
+        <!-- Show DB Button -->
+        <button id="showDB" class="btn btn-secondary" style="margin-top: 20px;">📊 Show DB</button>
 
     </div>
 

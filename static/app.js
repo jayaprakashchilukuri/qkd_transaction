@@ -4,6 +4,8 @@ class QuantumBankingApp {
     constructor() {
         this.quantumChannelActive = false;
         this.eavesdropperDetectionEnabled = false;
+        this.eavesdropperDetected = false;
+        this.transactionCount = 0;
         this.setupEventListeners();
         this.setupModalEvents();
     }
@@ -42,6 +44,12 @@ class QuantumBankingApp {
         const refreshBtn = document.getElementById('refreshData');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', this.refreshDashboard.bind(this));
+        }
+
+        // Add money button
+        const addMoneyBtn = document.getElementById('addMoney');
+        if (addMoneyBtn) {
+            addMoneyBtn.addEventListener('click', this.addMoney.bind(this));
         }
     }
 
@@ -184,6 +192,55 @@ class QuantumBankingApp {
         const recipient = document.getElementById('recipient').value;
         const amount = document.getElementById('amount').value;
         
+        // Check for eavesdropper detection enabled - show detection popup first
+        if (this.eavesdropperDetectionEnabled) {
+            this.showEavesdropperDetectionPopup(recipient, amount);
+            return;
+        }
+        
+        this.processTransaction(recipient, amount);
+    }
+
+    showEavesdropperDetectionPopup(recipient, amount) {
+        this.showModal(
+            '🚨 EAVESDROPPER DETECTION ACTIVE',
+            '<div class="hacker-icon" style="font-size: 4rem; margin: 20px 0;">👤💀</div><p><strong>SCANNING FOR THREATS...</strong></p><p>Checking quantum channel security before processing transaction.</p><p>Transaction: <strong>$' + amount + '</strong> to <strong>' + recipient + '</strong></p>',
+            'hacker',
+            () => {
+                // This callback runs when close button is clicked
+                this.handleEavesdropperDetectionResult(recipient, amount);
+            }
+        );
+    }
+
+    async handleEavesdropperDetectionResult(recipient, amount) {
+        // Simulate eavesdropper detection (30% chance when enabled)
+        const eavesdropperDetected = Math.random() < 0.3;
+        
+        if (eavesdropperDetected) {
+            // Store cancelled transaction
+            const encryptionKey = this.generateEncryptionKey();
+            await this.storeCancelledTransaction(recipient, amount, 'Eavesdropper detected - transaction blocked', encryptionKey);
+            
+            // Show transaction failed popup
+            this.showModal(
+                '❌ TRANSACTION FAILED',
+                `<div class="error-icon">🚫</div>
+                <p><strong>SECURITY BREACH DETECTED!</strong></p>
+                <p>Transaction to <strong>${recipient}</strong> for <strong>$${amount}</strong> has been cancelled for your security.</p>
+                <p>Your funds are safe. Please try again later.</p>`,
+                'error'
+            );
+            
+            // Update transaction history
+            this.loadTransactionHistory();
+        } else {
+            // Proceed with transaction
+            this.processTransaction(recipient, amount);
+        }
+    }
+
+    async processTransaction(recipient, amount) {
         this.showLoading('sendTransactionBtn', 'Processing transaction...');
         
         try {
@@ -196,18 +253,9 @@ class QuantumBankingApp {
             });
             
             const result = await response.json();
-            
-            // Check for eavesdropper detection enabled - block ALL transactions when enabled
-            if (this.eavesdropperDetectionEnabled) {
-                this.showModal(
-                    '🚫 TRANSACTION BLOCKED',
-                    '<p><strong>Eavesdropper Detection Active!</strong></p><p>Transaction to <strong>' + recipient + '</strong> for <strong>$' + amount + '</strong> has been blocked.</p><p>All transactions are disabled when eavesdropper detection is enabled for maximum security.</p><p>Please disable eavesdropper detection to proceed with transactions.</p>',
-                    'error'
-                );
-                return;
-            }
 
             if (result.success) {
+                this.transactionCount++;
                 const encryptionKey = this.generateEncryptionKey();
                 this.showQKDDemo(recipient, amount, encryptionKey);
                 
@@ -221,8 +269,11 @@ class QuantumBankingApp {
                 
                 // Process the transaction
                 setTimeout(async () => {
-                    await this.processTransaction(result.transaction_id);
+                    await this.processTransactionBackend(result.transaction_id, encryptionKey);
                 }, 2000);
+                
+                // Update QBER after successful transaction
+                this.updateQBRAfterTransaction();
                 
                 // Clear form
                 document.getElementById('transactionForm').reset();
@@ -243,17 +294,42 @@ class QuantumBankingApp {
         } catch (error) {
             this.showAlert('Transaction failed. Please try again.', 'error');
         } finally {
-            this.hideLoading('sendTransactionBtn', 'Send Transaction');
+            this.hideLoading('sendTransactionBtn', '🚀 Send Transaction');
         }
     }
 
-    async processTransaction(transactionId) {
+    async storeCancelledTransaction(recipient, amount, reason, encryptionKey) {
+        try {
+            const response = await fetch('/api/create_cancelled_transaction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipient: recipient,
+                    amount: amount,
+                    reason: reason,
+                    encryption_key: encryptionKey
+                })
+            });
+            
+            const data = await response.json();
+            if (!data.success) {
+                console.error('Failed to store cancelled transaction:', data.message);
+            }
+        } catch (error) {
+            console.error('Error storing cancelled transaction:', error);
+        }
+    }
+
+    async processTransactionBackend(transactionId, encryptionKey) {
         try {
             const response = await fetch(`/api/process_transaction/${transactionId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                body: JSON.stringify({ encryption_key: encryptionKey })
             });
             
             const result = await response.json();
@@ -269,6 +345,29 @@ class QuantumBankingApp {
             }
         } catch (error) {
             this.showAlert('Transaction processing error.', 'error');
+        }
+    }
+
+    async addMoney() {
+        try {
+            const response = await fetch('/api/add_money', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ amount: 500 })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showAlert('$500 added to your account!', 'success');
+                this.refreshDashboard();
+            } else {
+                this.showAlert(result.message, 'error');
+            }
+        } catch (error) {
+            this.showAlert('Failed to add money.', 'error');
         }
     }
 
@@ -298,38 +397,92 @@ class QuantumBankingApp {
             transactionCountElement.textContent = transactions.length;
         }
 
-        // Update recent transactions
+        // Update recent transactions with animation
         const transactionsList = document.getElementById('recentTransactions');
         if (transactionsList) {
             transactionsList.innerHTML = '';
             
-            transactions.forEach(transaction => {
-                const transactionElement = this.createTransactionElement(transaction);
-                transactionsList.appendChild(transactionElement);
-            });
+            if (transactions.length === 0) {
+                transactionsList.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+                        <h4>No transactions yet</h4>
+                        <p>Establish a quantum channel and send your first secure transaction!</p>
+                    </div>
+                `;
+            } else {
+                transactions.forEach((transaction, index) => {
+                    const transactionElement = this.createTransactionElement(transaction, index);
+                    transactionsList.appendChild(transactionElement);
+                });
+            }
         }
     }
 
-    createTransactionElement(transaction) {
+    createTransactionElement(transaction, index) {
         const div = document.createElement('div');
         div.className = 'transaction-item';
+        div.style.animationDelay = `${index * 0.1}s`;
         
         const statusClass = `status-${transaction.status}`;
+        const statusColor = this.getStatusColor(transaction.status);
+        const encryptionKey = transaction.encryption_key || this.generateEncryptionKey();
+        const transactionId = transaction._id || 'N/A';
         
         div.innerHTML = `
             <div class="transaction-header">
                 <div>
                     <strong>To: ${transaction.recipient}</strong>
-                    <div class="transaction-date">${new Date(transaction.timestamp).toLocaleDateString()}</div>
+                    <div class="transaction-date">${new Date(transaction.timestamp).toLocaleString()}</div>
                 </div>
                 <div>
                     <div class="transaction-amount">-$${transaction.amount.toFixed(2)}</div>
-                    <span class="transaction-status ${statusClass}">${transaction.status}</span>
+                    <span class="transaction-status ${statusClass}" style="background-color: ${statusColor};">${transaction.status.toUpperCase()}</span>
                 </div>
+            </div>
+            <div class="transaction-details" style="display: none; margin-top: 10px; padding: 15px; background: rgba(0,0,0,0.05); border-radius: 8px;">
+                <div class="transaction-info">
+                    <div><strong>Transaction ID:</strong> ${transactionId}</div>
+                    <div><strong>Date:</strong> ${new Date(transaction.timestamp).toLocaleString()}</div>
+                    <div><strong>From:</strong> Your Account</div>
+                    <div><strong>To:</strong> ${transaction.recipient}</div>
+                    <div><strong>Amount:</strong> $${transaction.amount.toFixed(2)}</div>
+                </div>
+                <div class="encryption-key-display" style="margin-top: 15px;">
+                    <strong>🔐 Encryption Key:</strong>
+                    <code class="encryption-key ${transaction.status}" style="color: ${statusColor}; background: rgba(255,255,255,0.8); padding: 8px; border-radius: 4px; display: block; margin-top: 5px; word-break: break-all; font-family: monospace;">${encryptionKey}</code>
+                </div>
+                ${transaction.reason ? `<div style="margin-top: 10px;"><strong>Reason:</strong> ${transaction.reason}</div>` : ''}
             </div>
         `;
         
+        // Add hover and click events
+        const header = div.querySelector('.transaction-header');
+        const details = div.querySelector('.transaction-details');
+        
+        header.addEventListener('mouseenter', () => {
+            details.style.display = 'block';
+        });
+        
+        div.addEventListener('mouseleave', () => {
+            details.style.display = 'none';
+        });
+        
+        header.addEventListener('click', () => {
+            details.style.display = details.style.display === 'none' ? 'block' : 'none';
+        });
+        
         return div;
+    }
+
+    getStatusColor(status) {
+        switch(status) {
+            case 'completed': return '#52c41a';
+            case 'cancelled': return '#ff4d4f';
+            case 'pending': return '#faad14';
+            case 'failed': return '#ff4d4f';
+            default: return '#d9d9d9';
+        }
     }
 
     updateQuantumStatus(active) {
@@ -340,8 +493,8 @@ class QuantumBankingApp {
         if (indicator && statusText) {
             if (active) {
                 indicator.className = 'quantum-indicator quantum-active';
-                statusText.textContent = 'Quantum Channel Active';
-                statusText.style.color = '#4facfe';
+                statusText.textContent = this.eavesdropperDetectionEnabled ? 'Quantum Channel Active - NOT SECURE' : 'Quantum Channel Active';
+                statusText.style.color = this.eavesdropperDetectionEnabled ? '#ff4d4f' : '#4facfe';
                 
                 // Show quantum metrics
                 if (quantumMetrics) {
@@ -357,6 +510,17 @@ class QuantumBankingApp {
                 if (quantumMetrics) {
                     quantumMetrics.style.display = 'none';
                 }
+            }
+        }
+    }
+
+    updateQuantumSecureText() {
+        const quantumSecureElement = document.getElementById('quantumSecure');
+        if (quantumSecureElement) {
+            if (this.eavesdropperDetectionEnabled) {
+                quantumSecureElement.innerHTML = '<span style="color: #ff4d4f; font-weight: bold;">⚠️ Eavesdropping Detected</span>';
+            } else {
+                quantumSecureElement.innerHTML = '<span style="color: #1890ff; font-weight: bold;">🔒 Channel Secure - No Eavesdropping Detected</span>';
             }
         }
     }
@@ -377,18 +541,28 @@ class QuantumBankingApp {
                 this.eavesdropperDetectionEnabled = e.target.checked;
                 if (e.target.checked) {
                     eavesdropperAnimation.style.display = 'block';
-                    this.startEavesdropperDetection();
+                    this.updateQuantumSecureText();
                 } else {
                     eavesdropperAnimation.style.display = 'none';
-                    this.stopEavesdropperDetection();
+                    this.updateQuantumSecureText();
                 }
             });
         }
     }
 
     updateQBR() {
-        // Simulate realistic QBR values (typically 0.01% - 0.15% for secure channels)
-        const baseQBR = 0.02 + (Math.random() * 0.08);
+        // Base QBR with transaction-based adjustments
+        let baseQBR = 0.02 + (Math.random() * 0.08);
+        
+        // Adjust based on transaction count and eavesdropper detection
+        if (this.eavesdropperDetectionEnabled) {
+            baseQBR += 0.05; // Higher error rate when detection enabled
+        }
+        
+        if (this.transactionCount > 5) {
+            baseQBR -= 0.01; // Better performance with more transactions
+        }
+        
         const qbrValue = document.getElementById('qbrValue');
         const channelStrength = document.getElementById('channelStrength');
         
@@ -403,53 +577,37 @@ class QuantumBankingApp {
                 } else if (baseQBR < 0.08) {
                     channelStrength.textContent = 'Good';
                     channelStrength.style.color = '#52c41a';
-                } else {
+                } else if (baseQBR < 0.12) {
                     channelStrength.textContent = 'Fair';
                     channelStrength.style.color = '#faad14';
+                } else {
+                    channelStrength.textContent = 'Poor';
+                    channelStrength.style.color = '#ff4d4f';
                 }
             }
         }
     }
 
-    startEavesdropperDetection() {
-        this.eavesdropperDetected = false;
-        this.eavesdropperInterval = setInterval(() => {
-            // Simulate eavesdropper detection (8% chance of detection)
-            const detectionStatus = document.getElementById('detectionStatus');
-            const detectionDiv = detectionStatus.parentElement;
+    updateQBRAfterTransaction() {
+        this.transactionCount++;
+        this.updateQBR();
+    }
+
+    updateQBRAfterThreat() {
+        // Temporarily increase QBR due to security threat
+        const qbrValue = document.getElementById('qbrValue');
+        const channelStrength = document.getElementById('channelStrength');
+        
+        if (qbrValue && channelStrength) {
+            qbrValue.textContent = '0.250%';
+            channelStrength.textContent = 'COMPROMISED';
+            channelStrength.style.color = '#ff4d4f';
             
-            if (Math.random() < 0.08) {
-                // Eavesdropper detected
-                this.eavesdropperDetected = true;
-                detectionStatus.textContent = '⚠️ ALERT: Potential Eavesdropping Detected!';
-                detectionDiv.classList.add('eavesdropper-detected');
-                
-                // Show hacker alert popup
-                this.showHackerAlert();
-                
-                // Reset after 5 seconds
-                setTimeout(() => {
-                    this.eavesdropperDetected = false;
-                    detectionStatus.textContent = '🛡️ Channel Secure - No Eavesdropping Detected';
-                    detectionDiv.classList.remove('eavesdropper-detected');
-                }, 5000);
-            }
-        }, 3000);
-    }
-
-    stopEavesdropperDetection() {
-        if (this.eavesdropperInterval) {
-            clearInterval(this.eavesdropperInterval);
+            // Reset after 10 seconds
+            setTimeout(() => {
+                this.updateQBR();
+            }, 10000);
         }
-        this.eavesdropperDetected = false;
-    }
-
-    showHackerAlert() {
-        this.showModal(
-            '🚨 SECURITY BREACH DETECTED',
-            '<div class="hacker-icon">👤💀</div><p><strong>ANONYMOUS HACKER DETECTED!</strong></p><p>Potential eavesdropping activity on quantum channel.</p><p>All transactions will be <strong style="color: #ff6b6b;">BLOCKED</strong> until channel is secure.</p>',
-            'hacker'
-        );
     }
 
     generateEncryptionKey() {
@@ -483,7 +641,7 @@ class QuantumBankingApp {
         }
     }
 
-    showModal(title, message, type = 'success') {
+    showModal(title, message, type = 'success', onCloseCallback = null) {
         const modal = document.getElementById('transactionModal');
         const modalHeader = document.getElementById('modalHeader');
         const modalBody = document.getElementById('modalBody');
@@ -493,6 +651,21 @@ class QuantumBankingApp {
             modalHeader.innerHTML = title;
             modalBody.innerHTML = message;
             modal.style.display = 'block';
+            
+            // Store callback for close button
+            this.modalCloseCallback = onCloseCallback;
+            
+            // Ensure close button works
+            setTimeout(() => {
+                const closeButton = modal.querySelector('.modal-close');
+                if (closeButton) {
+                    closeButton.onclick = (e) => {
+                        e.preventDefault();
+                        this.closeModal();
+                        return false;
+                    };
+                }
+            }, 100);
         }
     }
 
@@ -500,15 +673,35 @@ class QuantumBankingApp {
         const modal = document.getElementById('transactionModal');
         if (modal) {
             modal.style.display = 'none';
+            
+            // Execute callback if exists
+            if (this.modalCloseCallback) {
+                this.modalCloseCallback();
+                this.modalCloseCallback = null;
+            }
+            
+            // Clean up event listeners
+            const closeButton = modal.querySelector('.modal-close');
+            if (closeButton) {
+                closeButton.onclick = null;
+            }
         }
     }
 
-    // Add click outside modal to close
+    // Enhanced modal events with better close functionality
     setupModalEvents() {
         const modal = document.getElementById('transactionModal');
         if (modal) {
+            // Click outside modal to close
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
+                    this.closeModal();
+                }
+            });
+            
+            // ESC key to close modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'block') {
                     this.closeModal();
                 }
             });
@@ -566,9 +759,9 @@ document.addEventListener('DOMContentLoaded', () => {
     new QuantumBankingApp();
 });
 
-// Quantum visualization effects
+// Enhanced quantum visualization effects
 function addQuantumEffects() {
-    const quantumElements = document.querySelectorAll('.btn-quantum, .quantum-status');
+    const quantumElements = document.querySelectorAll('.btn-quantum, .quantum-status, .transaction-item');
     
     quantumElements.forEach(element => {
         element.addEventListener('mouseenter', () => {

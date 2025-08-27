@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Access - Quantum Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .data-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .data-item {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ Database Access</h1>
+            <p class="subtitle">View MongoDB Collections Data</p>
+        </div>
+
+        <button class="refresh-btn" onclick="loadDatabaseData()">🔄 Refresh Data</button>
+
+        <div id="loading" style="display: none; text-align: center; padding: 20px;">
+            <div class="spinner"></div>
+            <p>Loading database data...</p>
+        </div>
+
+        <div id="error" style="display: none; color: red; padding: 20px; text-align: center;">
+            <p>Error loading data. Please try again.</p>
+        </div>
+
+        <div id="databaseData">
+            <!-- Data will be loaded here -->
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        async function loadDatabaseData() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const dataContainer = document.getElementById('databaseData');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            dataContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/admin/database_access');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayData(result.data);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                error.style.display = 'block';
+                console.error('Error loading database data:', err);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        function displayData(data) {
+            const container = document.getElementById('databaseData');
+            
+            // Users
+            const usersSection = createSection('Users Collection', data.users);
+            container.appendChild(usersSection);
+            
+            // Transactions
+            const transactionsSection = createSection('Transactions Collection', data.transactions);
+            container.appendChild(transactionsSection);
+            
+            // Quantum Channels
+            const channelsSection = createSection('Quantum Channels Collection', data.quantum_channels);
+            container.appendChild(channelsSection);
+        }
+        
+        function createSection(title, items) {
+            const section = document.createElement('div');
+            section.className = 'data-section';
+            
+            const header = document.createElement('h3');
+            header.textContent = `${title} (${items.length} items)`;
+            header.style.color = '#667eea';
+            section.appendChild(header);
+            
+            if (items.length === 0) {
+                const emptyMsg = document.createElement('p');
+                emptyMsg.textContent = 'No data found';
+                emptyMsg.style.color = '#666';
+                section.appendChild(emptyMsg);
+            } else {
+                items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'data-item';
+                    
+                    const pre = document.createElement('pre');
+                    pre.textContent = JSON.stringify(item, null, 2);
+                    itemDiv.appendChild(pre);
+                    
+                    section.appendChild(itemDiv);
+                });
+            }
+            
+            return section;
+        }
+        
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadDatabaseData);
+    </script>
+</body>
+</html>

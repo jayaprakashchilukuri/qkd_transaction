@@ -24,29 +24,17 @@ import json
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
-# In-memory storage for demo (replace with MongoDB when available)
-users_db = {}
-transactions_db = {}
-quantum_channels_db = {}
+# MongoDB Configuration
+app.config["MONGO_URI"] = "mongodb+srv://jayaprakash:jayaprakash@bb84.gwvd6qy.mongodb.net/quantumbank?retryWrites=true&w=majority&appName=BB84"
+mongo = PyMongo(app)
 
-# Try MongoDB connection (optional)
-USE_MONGODB = False
-mongo = None
+# Test MongoDB connection
 try:
-    app.config["MONGO_URI"] = "mongodb+srv://jayaprakash:jayaprakash@bb84.gwvd6qy.mongodb.net/?retryWrites=true&w=majority&appName=BB84"
-    mongo = PyMongo(app)
-    # Test the connection with a timeout
     mongo.db.list_collection_names()
-    USE_MONGODB = True
     print("MongoDB connected successfully")
 except Exception as e:
-    USE_MONGODB = False
-    mongo = None
-    print(f"Using in-memory storage (MongoDB not available)")
-
-# Debug function to safely check mongo access
-def safe_mongo_check():
-    return USE_MONGODB and mongo is not None
+    print(f"MongoDB connection failed: {e}")
+    exit(1)
 
 # IBM Quantum Configuration
 IBM_API_KEY = "9iaePl02Xyks_5FjgjFUJ9BY__j-2cCzhucJuUGEXg-v"
@@ -56,7 +44,7 @@ IBM_INSTANCE = "crn:v1:bluemix:public:quantum-computing:us-east:a/74a4d48f9d1048
 service = None
 if QUANTUM_AVAILABLE:
     try:
-        service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_API_KEY, instance=IBM_INSTANCE)
+        service = QiskitRuntimeService(channel="ibm_quantum_platform", token=IBM_API_KEY, instance=IBM_INSTANCE)
         print("IBM Quantum service initialized successfully")
     except Exception as e:
         print(f"IBM Quantum service initialization failed: {e}")
@@ -196,28 +184,19 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    if USE_MONGODB and mongo:
-        user = mongo.db.users.find_one({'_id': session['user_id']})
+    try:
+        from bson import ObjectId
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
         transactions = list(mongo.db.transactions.find({'user_id': session['user_id']}).sort('timestamp', -1).limit(10))
-    else:
-        # Use in-memory storage
-        user = users_db.get(session['user_id'])
-        user_transactions = [t for t in transactions_db.values() if t.get('user_id') == session['user_id']]
         
-        # Safe sorting function to handle mixed timestamp types
-        def get_timestamp(transaction):
-            timestamp = transaction.get('timestamp')
-            if isinstance(timestamp, str):
-                try:
-                    return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                except:
-                    return datetime.min
-            elif isinstance(timestamp, datetime):
-                return timestamp
-            else:
-                return datetime.min
-        
-        transactions = sorted(user_transactions, key=get_timestamp, reverse=True)[:10]
+        if not user:
+            session.clear()
+            return redirect(url_for('login'))
+            
+    except Exception as e:
+        print(f"Dashboard error: {e}")
+        session.clear()
+        return redirect(url_for('login'))
     
     return render_template('dashboard.html', user=user, transactions=transactions)
 
@@ -229,16 +208,21 @@ def register():
         email = data.get('email')
         password = data.get('password')
         
-        # Check if user exists (in-memory only for speed)
-        if any(u.get('username') == username or u.get('email') == email for u in users_db.values()):
+        # Check if user exists in MongoDB
+        existing_user = mongo.db.users.find_one({
+            '$or': [
+                {'username': username},
+                {'email': email}
+            ]
+        })
+        
+        if existing_user:
             return jsonify({'success': False, 'message': 'User already exists'})
         
-        # Generate quantum key for user (fast)
+        # Generate quantum key for user
         quantum_key = secrets.token_hex(32)
-        user_id = secrets.token_hex(12)
         
         user_data = {
-            '_id': user_id,
             'username': username,
             'email': email,
             'password_hash': generate_password_hash(password),
@@ -247,8 +231,8 @@ def register():
             'created_at': datetime.utcnow()
         }
         
-        # Store user (in-memory for speed)
-        users_db[user_id] = user_data
+        # Store user in MongoDB
+        result = mongo.db.users.insert_one(user_data)
         
         return jsonify({'success': True, 'message': 'Registration successful'})
     
@@ -262,12 +246,8 @@ def api_login():
         username = data.get('username')
         password = data.get('password')
         
-        # Find user (in-memory for speed)
-        user = None
-        for uid, u in users_db.items():
-            if u['username'] == username:
-                user = u
-                break
+        # Find user in MongoDB
+        user = mongo.db.users.find_one({'username': username})
         
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = str(user['_id'])
@@ -285,25 +265,19 @@ def establish_quantum_channel():
         return jsonify({'success': False, 'message': 'Not authenticated'})
     
     try:
-        # Generate new quantum key for this session (fast)
+        # Generate new quantum key for this session
         quantum_key = secrets.token_hex(32)
-        channel_id = secrets.token_hex(12)
         
         channel_data = {
-            '_id': channel_id,
             'user_id': session['user_id'],
             'quantum_key': quantum_key,
             'established_at': datetime.utcnow(),
             'status': 'active'
         }
         
-        if USE_MONGODB and mongo:
-            # Store quantum channel info in MongoDB
-            result = mongo.db.quantum_channels.insert_one(channel_data)
-            channel_id = str(result.inserted_id)
-        else:
-            # Store in memory
-            quantum_channels_db[channel_id] = channel_data
+        # Store quantum channel info in MongoDB
+        result = mongo.db.quantum_channels.insert_one(channel_data)
+        channel_id = str(result.inserted_id)
         
         session['quantum_channel_id'] = channel_id
         
@@ -326,11 +300,9 @@ def send_transaction():
         recipient = data.get('recipient')
         amount = float(data.get('amount'))
         
-        # Get user data
-        if USE_MONGODB and mongo:
-            user = mongo.db.users.find_one({'_id': session['user_id']})
-        else:
-            user = users_db.get(session['user_id'])
+        # Get user data from MongoDB
+        from bson import ObjectId
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
             
         if not user or user['balance'] < amount:
             return jsonify({'success': False, 'message': 'Insufficient balance'})
@@ -339,10 +311,7 @@ def send_transaction():
         if 'quantum_channel_id' not in session:
             return jsonify({'success': False, 'message': 'No quantum channel established'})
         
-        if USE_MONGODB and mongo:
-            channel = mongo.db.quantum_channels.find_one({'_id': session['quantum_channel_id']})
-        else:
-            channel = quantum_channels_db.get(session['quantum_channel_id'])
+        channel = mongo.db.quantum_channels.find_one({'_id': ObjectId(session['quantum_channel_id'])})
             
         if not channel:
             return jsonify({'success': False, 'message': 'Invalid quantum channel'})
@@ -356,24 +325,20 @@ def send_transaction():
         })
         
         encrypted_data = encrypt_data(transaction_data, channel['quantum_key'])
-        transaction_id = secrets.token_hex(12)
         
         transaction_record = {
-            '_id': transaction_id,
             'user_id': session['user_id'],
             'recipient': recipient,
             'amount': amount,
             'encrypted_data': encrypted_data,
-            'quantum_key_id': channel['_id'],
+            'quantum_key_id': str(channel['_id']),
             'status': 'pending',
-            'timestamp': datetime.utcnow()
+            'timestamp': datetime.utcnow(),
+            'transaction_type': 'transfer'
         }
         
-        if USE_MONGODB and mongo:
-            result = mongo.db.transactions.insert_one(transaction_record)
-            transaction_id = str(result.inserted_id)
-        else:
-            transactions_db[transaction_id] = transaction_record
+        result = mongo.db.transactions.insert_one(transaction_record)
+        transaction_id = str(result.inserted_id)
         
         return jsonify({
             'success': True,
@@ -390,20 +355,18 @@ def process_transaction(transaction_id):
         return jsonify({'success': False, 'message': 'Not authenticated'})
     
     try:
+        from bson import ObjectId
+        data = request.get_json() or {}
+        encryption_key = data.get('encryption_key', '')
+        
         # Get transaction
-        if USE_MONGODB and mongo:
-            transaction = mongo.db.transactions.find_one({'_id': transaction_id})
-        else:
-            transaction = transactions_db.get(transaction_id)
+        transaction = mongo.db.transactions.find_one({'_id': ObjectId(transaction_id)})
             
         if not transaction:
             return jsonify({'success': False, 'message': 'Transaction not found'})
         
         # Get quantum channel and decrypt
-        if USE_MONGODB and mongo:
-            channel = mongo.db.quantum_channels.find_one({'_id': transaction['quantum_key_id']})
-        else:
-            channel = quantum_channels_db.get(transaction['quantum_key_id'])
+        channel = mongo.db.quantum_channels.find_one({'_id': ObjectId(transaction['quantum_key_id'])})
             
         if not channel:
             return jsonify({'success': False, 'message': 'Quantum channel not found'})
@@ -416,29 +379,111 @@ def process_transaction(transaction_id):
         transaction_data = json.loads(decrypted_data)
         
         # Update user balance
-        if USE_MONGODB and mongo:
-            mongo.db.users.update_one(
-                {'_id': session['user_id']},
-                {'$inc': {'balance': -transaction['amount']}}
-            )
-        else:
-            if session['user_id'] in users_db:
-                users_db[session['user_id']]['balance'] -= transaction['amount']
+        mongo.db.users.update_one(
+            {'_id': ObjectId(session['user_id'])},
+            {'$inc': {'balance': -transaction['amount']}}
+        )
         
-        # Update transaction status
-        if USE_MONGODB and mongo:
-            mongo.db.transactions.update_one(
-                {'_id': transaction_id},
-                {'$set': {'status': 'completed', 'processed_at': datetime.utcnow()}}
-            )
-        else:
-            if transaction_id in transactions_db:
-                transactions_db[transaction_id]['status'] = 'completed'
-                transactions_db[transaction_id]['processed_at'] = datetime.utcnow()
+        # Update transaction status with encryption key
+        mongo.db.transactions.update_one(
+            {'_id': ObjectId(transaction_id)},
+            {'$set': {
+                'status': 'completed', 
+                'processed_at': datetime.utcnow(),
+                'encryption_key': encryption_key
+            }}
+        )
         
         return jsonify({
             'success': True,
             'message': 'Transaction processed successfully'
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/create_cancelled_transaction', methods=['POST'])
+def create_cancelled_transaction():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'})
+    
+    try:
+        data = request.get_json()
+        recipient = data.get('recipient')
+        amount = float(data.get('amount'))
+        reason = data.get('reason', 'Transaction cancelled')
+        encryption_key = data.get('encryption_key', '')
+        
+        from bson import ObjectId
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
+        
+        transaction_record = {
+            'user_id': session['user_id'],
+            'username': user['username'] if user else 'Unknown',
+            'recipient': recipient,
+            'amount': amount,
+            'encrypted_data': '',
+            'quantum_key_id': '',
+            'status': 'cancelled',
+            'timestamp': datetime.utcnow(),
+            'reason': reason,
+            'encryption_key': encryption_key,
+            'transaction_type': 'transfer'
+        }
+        
+        result = mongo.db.transactions.insert_one(transaction_record)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Cancelled transaction recorded',
+            'transaction_id': str(result.inserted_id)
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/add_money', methods=['POST'])
+def add_money():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'})
+    
+    try:
+        data = request.get_json()
+        amount = float(data.get('amount', 500))
+        
+        from bson import ObjectId
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
+        
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'})
+        
+        # Update user balance
+        mongo.db.users.update_one(
+            {'_id': ObjectId(session['user_id'])},
+            {'$inc': {'balance': amount}}
+        )
+        
+        # Create transaction record for money addition
+        transaction_record = {
+            'user_id': session['user_id'],
+            'username': user['username'],
+            'recipient': 'Self (Add Money)',
+            'amount': amount,
+            'encrypted_data': '',
+            'quantum_key_id': '',
+            'status': 'completed',
+            'timestamp': datetime.utcnow(),
+            'reason': 'Money added to account',
+            'encryption_key': secrets.token_hex(32),
+            'transaction_type': 'deposit'
+        }
+        
+        mongo.db.transactions.insert_one(transaction_record)
+        
+        return jsonify({
+            'success': True,
+            'message': f'${amount} added to your account',
+            'new_balance': user['balance'] + amount
         })
     
     except Exception as e:
@@ -449,52 +494,65 @@ def get_user_data():
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'Not authenticated'})
     
-    if USE_MONGODB and mongo:
-        user = mongo.db.users.find_one({'_id': session['user_id']})
+    try:
+        from bson import ObjectId
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
         transactions = list(mongo.db.transactions.find({'user_id': session['user_id']}).sort('timestamp', -1).limit(10))
         
         # Convert ObjectId to string for JSON serialization
         for transaction in transactions:
             transaction['_id'] = str(transaction['_id'])
-            transaction['timestamp'] = transaction['timestamp'].isoformat()
-    else:
-        user = users_db.get(session['user_id'])
-        user_transactions = [t for t in transactions_db.values() if t.get('user_id') == session['user_id']]
-        
-        # Safe sorting function to handle mixed timestamp types
-        def get_timestamp(transaction):
-            timestamp = transaction.get('timestamp')
-            if isinstance(timestamp, str):
-                try:
-                    return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                except:
-                    return datetime.min
-            elif isinstance(timestamp, datetime):
-                return timestamp
-            else:
-                return datetime.min
-        
-        transactions = sorted(user_transactions, key=get_timestamp, reverse=True)[:10]
-        
-        # Convert timestamp to string for JSON serialization
-        for transaction in transactions:
             if isinstance(transaction.get('timestamp'), datetime):
                 transaction['timestamp'] = transaction['timestamp'].isoformat()
     
-    return jsonify({
-        'success': True,
-        'user': {
-            'username': user['username'],
-            'email': user['email'],
-            'balance': user['balance']
-        },
-        'transactions': transactions
-    })
+        return jsonify({
+            'success': True,
+            'user': {
+                'username': user['username'],
+                'email': user['email'],
+                'balance': user['balance']
+            },
+            'transactions': transactions
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# New endpoint to access database data
+@app.route('/api/admin/database_access')
+def database_access():
+    try:
+        users = list(mongo.db.users.find({}, {'password_hash': 0}))  # Exclude password hash
+        transactions = list(mongo.db.transactions.find({}))
+        channels = list(mongo.db.quantum_channels.find({}))
+        
+        # Convert ObjectId to string for JSON serialization
+        for collection in [users, transactions, channels]:
+            for item in collection:
+                if '_id' in item:
+                    item['_id'] = str(item['_id'])
+                for key, value in item.items():
+                    if isinstance(value, datetime):
+                        item[key] = value.isoformat()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'users': users,
+                'transactions': transactions,
+                'quantum_channels': channels
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/database')
+def database_access_page():
+    return render_template('database_access.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
